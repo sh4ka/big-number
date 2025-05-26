@@ -26,6 +26,16 @@ impl BigNumber {
         }
         BigNumber { mantissa: m, exponent: e, decimals }
     }
+    pub fn zero() -> Self {
+        let mut m = 0.0;
+        let mut e = 1;
+        BigNumber { mantissa: m, exponent: e, decimals: 2 }
+    }
+    pub fn one() -> Self {
+        let mut m = 1.0;
+        let mut e = 0;
+        BigNumber { mantissa: m, exponent: e, decimals: 2 }
+    }
 
     pub fn add(self, other: BigNumber) -> BigNumber {
         if self.exponent == other.exponent {
@@ -162,5 +172,17 @@ mod tests {
         let c = BigNumber::new(1.0, 9, 2);
         assert_eq!(c.to_string(), "1e9");
         assert_eq!(c.to_string_with_precision(2), "1e9");
+    }
+
+    #[test]
+    fn test_zero_helper() {
+        let c = BigNumber::zero();
+        assert_eq!(c.to_string(), "0");
+    }
+
+    #[test]
+    fn test_one_helper() {
+        let c = BigNumber::one();
+        assert_eq!(c.to_string(), "1");
     }
 }
