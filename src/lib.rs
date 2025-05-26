@@ -16,7 +16,7 @@ impl BigNumber {
     pub fn new(mantissa: f64, exponent: i32, decimals: u8) -> Self {
         let mut m = mantissa;
         let mut e = exponent;
-        while m >= 10.0 {
+        while m >= 10.0 && e < i32::MAX {
             m /= 10.0;
             e += 1;
         }
