@@ -1,17 +1,21 @@
 /// A simple BigNumber implementation using scientific notation
-/// for incremental/idle games.
+/// for incremental/idle games, with suffixes for thousands and millions,
+/// configurable precision and trimming of trailing zeros.
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BigNumber {
     pub mantissa: f64,
     pub exponent: i32,
+    /**
+     * Number of decimal places to show when representing this number with to_string(). It does not modify the underlying number's precision.
+     */
+    pub decimals: u8,
 }
 
 impl BigNumber {
-    pub fn new(mantissa: f64, exponent: i32) -> Self {
+    pub fn new(mantissa: f64, exponent: i32, decimals: u8) -> Self {
         let mut m = mantissa;
         let mut e = exponent;
-
         while m >= 10.0 {
             m /= 10.0;
             e += 1;
@@ -20,82 +24,83 @@ impl BigNumber {
             m *= 10.0;
             e -= 1;
         }
-
-        BigNumber { mantissa: m, exponent: e }
-    }
-
-    pub fn zero() -> Self {
-        BigNumber { mantissa: 0.0, exponent: 0 }
-    }
-
-    pub fn one() -> Self {
-        BigNumber { mantissa: 1.0, exponent: 0 }
+        BigNumber { mantissa: m, exponent: e, decimals }
     }
 
     pub fn add(self, other: BigNumber) -> BigNumber {
-        if self.mantissa == 0.0 {
-            return other;
-        }
-        if other.mantissa == 0.0 {
-            return self;
-        }
-
-        let (larger, smaller) = if self.exponent >= other.exponent {
-            (self, other)
+        if self.exponent == other.exponent {
+            BigNumber::new(self.mantissa + other.mantissa, self.exponent, self.decimals)
+        } else if self.exponent > other.exponent {
+            BigNumber::new(
+                self.mantissa + other.mantissa / 10f64.powi(self.exponent - other.exponent),
+                self.exponent,
+                self.decimals
+            )
         } else {
-            (other, self)
-        };
-
-        let exponent_diff = (larger.exponent - smaller.exponent) as f64;
-
-        if exponent_diff > 15.0 {
-            return larger;
+            BigNumber::new(
+                self.mantissa / 10f64.powi(other.exponent - self.exponent) + other.mantissa,
+                other.exponent,
+                self.decimals
+            )
         }
-
-        let added_mantissa = larger.mantissa + smaller.mantissa * 10f64.powf(-exponent_diff);
-        BigNumber::new(added_mantissa, larger.exponent)
     }
 
     pub fn sub(self, other: BigNumber) -> BigNumber {
-        if other.mantissa == 0.0 {
-            return self;
-        }
-        if self.mantissa == 0.0 {
-            return BigNumber::new(-other.mantissa, other.exponent);
-        }
-
-        let (larger, smaller, sign) = if self.exponent >= other.exponent {
-            (self, other, 1.0)
+        if self.exponent == other.exponent {
+            BigNumber::new(self.mantissa - other.mantissa, self.exponent, self.decimals)
+        } else if self.exponent > other.exponent {
+            BigNumber::new(
+                self.mantissa - other.mantissa / 10f64.powi(self.exponent - other.exponent),
+                self.exponent,
+                self.decimals
+            )
         } else {
-            (other, self, -1.0)
-        };
-
-        let exponent_diff = (larger.exponent - smaller.exponent) as f64;
-
-        if exponent_diff > 15.0 {
-            return self;
+            BigNumber::new(
+                self.mantissa / 10f64.powi(other.exponent - self.exponent) - other.mantissa,
+                other.exponent,
+                self.decimals
+            )
         }
-
-        let result_mantissa = larger.mantissa - sign * smaller.mantissa * 10f64.powf(-exponent_diff);
-        BigNumber::new(result_mantissa, larger.exponent)
     }
 
     pub fn mul(self, other: BigNumber) -> BigNumber {
-        BigNumber::new(self.mantissa * other.mantissa, self.exponent + other.exponent)
+        BigNumber::new(self.mantissa * other.mantissa, self.exponent + other.exponent, self.decimals)
     }
 
     pub fn div(self, other: BigNumber) -> BigNumber {
-        if other.mantissa == 0.0 {
-            panic!("Division by zero in BigNumber::div");
-        }
-        BigNumber::new(self.mantissa / other.mantissa, self.exponent - other.exponent)
+        BigNumber::new(self.mantissa / other.mantissa, self.exponent - other.exponent, self.decimals)
     }
 
     pub fn to_string(&self) -> String {
+        self.to_string_with_precision(self.decimals as usize)
+    }
+
+    pub fn to_string_with_precision(&self, precision: usize) -> String {
         if self.mantissa == 0.0 {
-            "0".to_string()
+            return "0".to_string();
+        }
+        let val = self.mantissa * 10f64.powi(self.exponent);
+        // Helper: formatea y recorta ceros y punto final
+        let format_trim = |num: f64| {
+            let s = format!("{:.*}", precision, num);
+            if let Some(_) = s.find('.') {
+                s.trim_end_matches('0').trim_end_matches('.').to_string()
+            } else {
+                s
+            }
+        };
+
+        if val < 1e3 {
+            format_trim(val)
+        } else if val < 1e6 {
+            let v = val / 1e3;
+            format!("{}K", format_trim(v))
+        } else if val < 1e9 {
+            let v = val / 1e6;
+            format!("{}M", format_trim(v))
         } else {
-            format!("{:.3}e{}", self.mantissa, self.exponent)
+            let m_str = format_trim(self.mantissa);
+            format!("{}e{}", m_str, self.exponent)
         }
     }
 }
@@ -106,29 +111,56 @@ mod tests {
 
     #[test]
     fn test_addition() {
-        let a = BigNumber::new(1.0, 10);
-        let b = BigNumber::new(2.0, 10);
-        assert_eq!(a.add(b).to_string(), "3.000e10");
-    }
-
-    #[test]
-    fn test_multiplication() {
-        let a = BigNumber::new(2.0, 10);
-        let b = BigNumber::new(3.0, 5);
-        assert_eq!(a.mul(b).to_string(), "6.000e15");
+        let a = BigNumber::new(1.0, 10, 2);
+        let b = BigNumber::new(2.0, 10, 2);
+        assert_eq!(a.add(b).to_string(), "3e10");
     }
 
     #[test]
     fn test_subtraction() {
-        let a = BigNumber::new(5.0, 10);
-        let b = BigNumber::new(3.0, 10);
-        assert_eq!(a.sub(b).to_string(), "2.000e10");
+        let a = BigNumber::new(5.0, 10, 2);
+        let b = BigNumber::new(3.0, 10, 2);
+        assert_eq!(a.sub(b).to_string(), "2e10");
+    }
+
+    #[test]
+    fn test_multiplication() {
+        let a = BigNumber::new(2.0, 5, 2);
+        let b = BigNumber::new(3.0, 6, 2);
+        assert_eq!(a.mul(b).to_string(), "6e11");
     }
 
     #[test]
     fn test_division() {
-        let a = BigNumber::new(6.0, 10);
-        let b = BigNumber::new(2.0, 5);
-        assert_eq!(a.div(b).to_string(), "3.000e5");
+        let a = BigNumber::new(6.0, 10, 2);
+        let b = BigNumber::new(2.0, 5, 2);
+        assert_eq!(a.div(b).to_string(), "300K");
     }
-} 
+
+    #[test]
+    fn test_small_values() {
+        let a = BigNumber::new(5.0, 0, 2);
+        assert_eq!(a.to_string(), "5");
+        let b = BigNumber::new(1.23456, 0, 2);
+        assert_eq!(b.to_string(), "1.23");
+        assert_eq!(b.to_string_with_precision(1), "1.2");
+    }
+
+    #[test]
+    fn test_thousands_and_millions() {
+        let k = BigNumber::new(1.234, 3, 2);
+        assert_eq!(k.to_string(), "1.23K");
+        let m = BigNumber::new(5.0, 6, 2);
+        assert_eq!(m.to_string(), "5M");
+        assert_eq!(k.to_string_with_precision(2), "1.23K");
+        let t = BigNumber::new(300.0, 3, 2); // 300K
+        assert_eq!(t.to_string(), "300K");
+    }
+
+    #[test]
+    fn test_scientific_after_threshold() {
+        let c = BigNumber::new(1.0, 9, 2);
+        assert_eq!(c.to_string(), "1e9");
+        assert_eq!(c.to_string_with_precision(2), "1e9");
+    }
+}
