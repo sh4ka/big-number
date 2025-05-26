@@ -16,11 +16,11 @@ impl BigNumber {
     pub fn new(mantissa: f64, exponent: i32, decimals: u8) -> Self {
         let mut m = mantissa;
         let mut e = exponent;
-        while m >= 10.0 {
+        while m >= 10.0 && e < i32::MAX {
             m /= 10.0;
             e += 1;
         }
-        while m < 1.0 && m != 0.0 {
+        while m < 1.0 && m != 0.0 && e > i32::MIN {
             m *= 10.0;
             e -= 1;
         }
@@ -184,5 +184,17 @@ mod tests {
     fn test_one_helper() {
         let c = BigNumber::one();
         assert_eq!(c.to_string(), "1");
+    }
+    #[test]
+    fn test_overflow_creation() {
+        let max_i32 = i32::MAX;
+        let max_f64 = f64::MAX;
+        let _one = BigNumber::new(max_f64, max_i32, 2);
+    }
+    #[test]
+    fn test_underflow_creation() {
+        let max_i32 = i32::MIN;
+        let max_f64 = 0.1;
+        let _one = BigNumber::new(max_f64, max_i32, 2);
     }
 }
