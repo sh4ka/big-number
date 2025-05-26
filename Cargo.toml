@@ -11,5 +11,8 @@ categories = ["mathematics", "games"]
 readme = "README.md"
 documentation = "https://docs.rs/big_number"
 homepage = "https://github.com/sh4ka/big_number"
+exclude = [
+    ".github"
+]
 
 [dependencies]
