@@ -185,4 +185,10 @@ mod tests {
         let c = BigNumber::one();
         assert_eq!(c.to_string(), "1");
     }
+    #[test]
+    fn test_overflow_creation() {
+        let max_i32 = i32::MAX;
+        let max_f64 = f64::MAX;
+        let _one = BigNumber::new(max_f64, max_i32, 2);
+    }
 }
