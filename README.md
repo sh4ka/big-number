@@ -3,8 +3,6 @@
 A scientific notation number type for idle/incremental games in Rust.
 
 [![Crates.io](https://img.shields.io/crates/v/big_number.svg)](https://crates.io/crates/big_number)
-[![Documentation](https://docs.rs/big_number/badge.svg)](https://docs.rs/big_number)
-[![License](https://img.shields.io/crates/l/big_number.svg)](https://github.com/sh4ka/big_number#license)
 
 ## Overview
 
