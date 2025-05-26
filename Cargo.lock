@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "big-number-lib"
+name = "big_number"
 version = "0.1.0"
